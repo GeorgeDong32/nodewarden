@@ -45,6 +45,16 @@ export interface RemoteBackupFilePutOptions {
   contentType?: string;
 }
 
+async function fetchBackupRequest(url: string | URL, init: RequestInit): Promise<Response> {
+  // Workers only supports follow/manual. Never forward backup credentials to a redirect target.
+  const response = await fetch(url, { ...init, redirect: 'manual' });
+  if (response.status >= 300 && response.status < 400) {
+    await response.body?.cancel();
+    throw new Error(`Backup endpoint returned a redirect (${response.status}); configure its final HTTPS URL.`);
+  }
+  return response;
+}
+
 function isBackupArchiveName(name: string): boolean {
   return /\.zip$/i.test(String(name || '').trim());
 }
@@ -247,7 +257,7 @@ async function ensureWebDavDirectory(baseUrl: string, directoryPath: string, aut
   for (const segment of segments) {
     current = buildJoinedPath(current, segment);
     const url = buildWebDavUrl(baseUrl, current);
-    const response = await fetch(url, {
+    const response = await fetchBackupRequest(url, {
       method: 'MKCOL',
       headers: {
         Authorization: authHeader,
@@ -270,7 +280,7 @@ async function ensureWebDavDirectoryCached(
     current = buildJoinedPath(current, segment);
     if (ensuredDirectories.has(current)) continue;
     const url = buildWebDavUrl(baseUrl, current);
-    const response = await fetch(url, {
+    const response = await fetchBackupRequest(url, {
       method: 'MKCOL',
       headers: {
         Authorization: authHeader,
@@ -303,7 +313,7 @@ async function putToWebDav(
     }
   }
 
-  const response = await fetch(buildWebDavUrl(config.baseUrl, remoteFilePath), {
+  const response = await fetchBackupRequest(buildWebDavUrl(config.baseUrl, remoteFilePath), {
     method: 'PUT',
     headers: {
       Authorization: authHeader,
@@ -340,7 +350,7 @@ async function listWebDavEntries(config: WebDavBackupDestination, relativePath: 
   const currentPath = normalizeRelativePath(relativePath);
   const targetFullPath = webDavFullPath(config, currentPath);
   const authHeader = toBasicAuthHeader(config.username, config.password);
-  const response = await fetch(buildWebDavUrl(config.baseUrl, targetFullPath), {
+  const response = await fetchBackupRequest(buildWebDavUrl(config.baseUrl, targetFullPath), {
     method: 'PROPFIND',
     headers: {
       Authorization: authHeader,
@@ -408,7 +418,7 @@ async function downloadFromWebDav(config: WebDavBackupDestination, relativePath:
   }
   const authHeader = toBasicAuthHeader(config.username, config.password);
   const remotePath = webDavFullPath(config, normalized);
-  const response = await fetch(buildWebDavUrl(config.baseUrl, remotePath), {
+  const response = await fetchBackupRequest(buildWebDavUrl(config.baseUrl, remotePath), {
     method: 'GET',
     headers: {
       Authorization: authHeader,
@@ -429,7 +439,7 @@ async function downloadFromWebDav(config: WebDavBackupDestination, relativePath:
 async function deleteFromWebDav(config: WebDavBackupDestination, relativePath: string): Promise<void> {
   const authHeader = toBasicAuthHeader(config.username, config.password);
   const remotePath = webDavFullPath(config, relativePath);
-  const response = await fetch(buildWebDavUrl(config.baseUrl, remotePath), {
+  const response = await fetchBackupRequest(buildWebDavUrl(config.baseUrl, remotePath), {
     method: 'DELETE',
     headers: {
       Authorization: authHeader,
@@ -447,7 +457,7 @@ async function existsInWebDav(config: WebDavBackupDestination, relativePath: str
 async function statWebDavFile(config: WebDavBackupDestination, relativePath: string): Promise<RemoteBackupFileStat | null> {
   const authHeader = toBasicAuthHeader(config.username, config.password);
   const remotePath = webDavFullPath(config, relativePath);
-  const response = await fetch(buildWebDavUrl(config.baseUrl, remotePath), {
+  const response = await fetchBackupRequest(buildWebDavUrl(config.baseUrl, remotePath), {
     method: 'HEAD',
     headers: {
       Authorization: authHeader,
@@ -519,7 +529,7 @@ async function signedS3Request(
     config.region || 'auto'
   );
 
-  return fetch(url, {
+  return fetchBackupRequest(url, {
     method,
     headers: {
       Authorization: authorization,

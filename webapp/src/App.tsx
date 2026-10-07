@@ -561,7 +561,23 @@ export default function App() {
     };
   }, [lockedSessionRefreshError, phase]);
 
+  function clearAuthenticationSecrets() {
+    setLoginValues((prev) => ({ ...prev, password: '' }));
+    setRegisterValues((prev) => ({ ...prev, password: '', password2: '' }));
+    setRecoverValues((prev) => ({ ...prev, password: '', recoveryCode: '' }));
+    setPendingTotp(null);
+    setPendingTotpMode(null);
+    setPendingPasskeyPassword(null);
+    setTotpCode('');
+    setPasskeyPassword('');
+    setUnlockPassword('');
+    setDisableTotpPassword('');
+    setDisableTotpOpen(false);
+    loginScopedBackupRepairAuthRef.current = null;
+  }
+
   async function finalizeLogin(login: CompletedLogin) {
+    clearAuthenticationSecrets();
     loginScopedBackupRepairAuthRef.current =
       login.session.accessToken && (login.freshMasterPasswordHash || login.freshUserVerificationToken)
         ? {
@@ -574,12 +590,6 @@ export default function App() {
     setProfile(login.profile);
     setUnlockPreparing(false);
     setLockedSessionRefreshError('');
-    setPendingTotp(null);
-    setPendingTotpMode(null);
-    setPendingPasskeyPassword(null);
-    setTotpCode('');
-    setPasskeyPassword('');
-    setUnlockPassword('');
     setPhase('app');
     if (location === '/' || location === '/login' || location === '/register' || location === '/lock') {
       navigate('/vault');
@@ -801,6 +811,7 @@ export default function App() {
         pushToast('error', resp.message);
         return;
       }
+      clearAuthenticationSecrets();
       setLoginValues({ email: registerValues.email.toLowerCase(), password: '' });
       setPhase('login');
       navigate('/login');
@@ -906,6 +917,7 @@ export default function App() {
   }
 
   function lockCurrentSession() {
+    clearAuthenticationSecrets();
     const currentSession = sessionRef.current;
     if (!currentSession) return;
     const nextSession = { ...currentSession };
@@ -917,10 +929,6 @@ export default function App() {
     setDecryptedCiphers([]);
     setDecryptedSends([]);
     clearPasswordSecurityCache();
-    setUnlockPassword('');
-    setPendingTotp(null);
-    setPendingTotpMode(null);
-    setTotpCode('');
     setUnlockPreparing(false);
     setLockedSessionRefreshError('');
     setPhase('locked');
@@ -932,6 +940,7 @@ export default function App() {
   }
 
   function logoutNow() {
+    clearAuthenticationSecrets();
     if (!IS_DEMO_MODE) {
       void revokeCurrentSession(sessionRef.current);
     }
@@ -942,8 +951,6 @@ export default function App() {
     clearPasswordSecurityCache();
     setProfile(null);
     setUnlockPreparing(false);
-    setPendingTotp(null);
-    setPendingTotpMode(null);
     setPhase('login');
     navigate('/login');
   }
