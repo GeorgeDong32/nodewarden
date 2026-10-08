@@ -26,6 +26,8 @@
     "test:webauthn-connectors": "node --test scripts/webauthn-mobile-connector.test.mjs scripts/webauthn-connector.test.mjs && tsx --test scripts/webauthn-connector-headers.test.ts",
     "deploy": "wrangler deploy",
     "deploy:beta": "wrangler deploy -c wrangler.my.toml --secrets-file .dev.vars",
+    "deploy:ci": "wrangler deploy -c wrangler.beta.toml --keep-vars",
+    "verify:ci": "node --import tsx --test scripts/*.test.ts scripts/*.test.mjs && tsc -p tsconfig.json --noEmit && tsc -p webapp/tsconfig.json --noEmit && npm run i18n:validate && wrangler deploy -c wrangler.beta.toml --keep-vars --dry-run",
     "deploy:kv": "node scripts/ensure-kv.cjs && wrangler deploy -c wrangler.kv.toml",
     "deploy:demo": "npm run build:demo && wrangler pages deploy dist --project-name nw-demo"
   },
